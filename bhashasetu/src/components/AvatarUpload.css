@@ -1,0 +1,142 @@
+/* ─── Avatar Upload Component Styles ────────────────────────────────────── */
+
+.avatar-upload-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  position: relative;
+}
+
+/* ── Clickable circle ──────────────────────────────────────────── */
+.avatar-upload-circle {
+  position: relative;
+  width: 110px;
+  height: 110px;
+  border-radius: 50%;
+  cursor: pointer;
+  outline: none;
+  overflow: hidden;
+
+  /* Gradient border ring */
+  padding: 3px;
+  background: linear-gradient(135deg, var(--primary, #2563eb), #c084fc);
+  box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.4);
+
+  transition:
+    transform 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+    box-shadow 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.avatar-upload-circle:hover {
+  transform: scale(1.04);
+  box-shadow: 0 0 0 5px rgba(37, 99, 235, 0.25);
+}
+
+.avatar-upload-circle:focus-visible {
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.5);
+}
+
+.avatar-upload-circle.avatar-uploading {
+  cursor: wait;
+  opacity: 0.85;
+}
+
+/* ── Image & placeholder ───────────────────────────────────────── */
+.avatar-upload-img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid var(--bg-color, #0f172a);
+  display: block;
+  transition: filter 0.25s;
+}
+
+.avatar-upload-placeholder {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: var(--bg-color-alt, #1e293b);
+  border: 3px solid var(--bg-color, #0f172a);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ── Camera overlay (revealed on hover / upload) ───────────────── */
+.avatar-upload-overlay {
+  position: absolute;
+  inset: 3px; /* inside the gradient ring */
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  pointer-events: none;
+  backdrop-filter: blur(2px);
+}
+
+.avatar-upload-circle:hover .avatar-upload-overlay,
+.avatar-upload-circle.avatar-uploading .avatar-upload-overlay {
+  opacity: 1;
+}
+
+.overlay-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* ── Spinner animation ──────────────────────────────────────────── */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.avatar-spinner {
+  animation: spin 0.8s linear infinite;
+}
+
+/* ── Toast notification ─────────────────────────────────────────── */
+.avatar-toast {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  white-space: nowrap;
+  animation: slide-up 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.avatar-toast--success {
+  background: rgba(16, 185, 129, 0.15);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  color: #10b981;
+}
+
+.avatar-toast--error {
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  color: #ef4444;
+}
+
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Mobile ─────────────────────────────────────────────────────── */
+@media (max-width: 640px) {
+  .avatar-upload-circle {
+    width: 90px;
+    height: 90px;
+  }
+}

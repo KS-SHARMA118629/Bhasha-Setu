@@ -1,0 +1,129 @@
+.modern-profile-card {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  padding: 1.25rem 1.5rem;
+  background: var(--panel-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--panel-border);
+  border-radius: 20px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  max-width: fit-content;
+  user-select: none;
+}
+
+.modern-profile-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+  border-color: rgba(37, 99, 235, 0.3);
+}
+
+.avatar-section {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.avatar-ring {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  padding: 3px;
+  background: linear-gradient(135deg, var(--primary), #c084fc);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+}
+
+.avatar-img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--bg-color-alt);
+  border: 2px solid var(--bg-color);
+}
+
+.avatar-placeholder {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: var(--bg-color-alt);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border: 2px solid var(--bg-color);
+}
+
+.info-section {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.name-container {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.user-display-name {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-main);
+  margin: 0;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+
+.verification-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  filter: drop-shadow(0 2px 4px rgba(29, 161, 242, 0.2));
+  animation: badge-pulse 2s infinite ease-in-out;
+}
+
+.user-role {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+@keyframes badge-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+
+/* Mobile Responsiveness */
+@media (max-width: 640px) {
+  .modern-profile-card {
+    padding: 1rem 1.25rem;
+    gap: 1rem;
+    border-radius: 16px;
+  }
+
+  .avatar-ring {
+    width: 60px;
+    height: 60px;
+  }
+
+  .user-display-name {
+    font-size: 1.1rem;
+  }
+
+  .user-role {
+    font-size: 0.8rem;
+  }
+}
+
+@media (max-width: 400px) {
+  .modern-profile-card {
+    width: 100%;
+    max-width: 100%;
+  }
+}
