@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Moon, Sun, Bell, Globe, Shield, Save } from 'lucide-react';
+import UserProfile from '../components/UserProfile';
+import { supabase } from '../lib/supabase';
 
 const Settings = ({ session }) => {
   // Pull from local storage or default to dark
@@ -9,6 +11,17 @@ const Settings = ({ session }) => {
   });
 
   const [saving, setSaving] = useState(false);
+  const [profile, setProfile] = useState(null);
+
+  useEffect(() => {
+    if (session) {
+      const getProfile = async () => {
+        const { data } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
+        setProfile(data);
+      };
+      getProfile();
+    }
+  }, [session]);
 
   useEffect(() => {
     // Apply class to body for global CSS var changes
@@ -34,7 +47,11 @@ const Settings = ({ session }) => {
 
   return (
     <div className="container" style={{ maxWidth: '800px' }}>
-      <h1 style={{ fontSize: '2rem', marginBottom: '2rem' }}>Settings</h1>
+      <h1 style={{ fontSize: '2.5rem', fontWeight: 800, marginBottom: '2rem', letterSpacing: '-0.03em' }}>Settings</h1>
+      
+      <div style={{ marginBottom: '2rem' }}>
+        <UserProfile profile={profile} />
+      </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
         

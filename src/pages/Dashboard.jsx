@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 import AssistantChatbot from '../components/AssistantChatbot';
 import GovtSchemes from '../components/GovtSchemes';
 import VoiceComplaint from '../components/VoiceComplaint';
+import UserProfile from '../components/UserProfile';
 import { Send, User, Bot, Ticket, Loader2, Sparkles, AlertTriangle, ShieldAlert } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -37,9 +38,10 @@ const Dashboard = ({ session }) => {
 
   return (
     <div className="container">
-      <h1 style={{ fontSize: '2rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '12px' }}>
-        Welcome back, {profile?.name} <span style={{ fontSize: '1rem', padding: '4px 12px', background: 'var(--bg-color-alt)', borderRadius: '20px' }}>{profile?.preferred_language?.toUpperCase()} Enabled</span>
-      </h1>
+      <div style={{ marginBottom: '2rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+        <h1 style={{ fontSize: '2.5rem', fontWeight: 800, letterSpacing: '-0.03em' }}>Dashboard</h1>
+        <UserProfile profile={profile} />
+      </div>
       
       {profile?.is_banned && (
         <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid var(--danger)', padding: '1rem', borderRadius: '8px', marginBottom: '2rem', display: 'flex', gap: '8px', color: 'var(--danger)' }}>
