@@ -48,32 +48,32 @@ const Settings = ({ session }) => {
   return (
     <div className="container" style={{ maxWidth: '800px' }}>
       <h1 style={{ fontSize: '2.5rem', fontWeight: 800, marginBottom: '2rem', letterSpacing: '-0.03em' }}>Settings</h1>
-      
+
       <div style={{ marginBottom: '2rem' }}>
         <UserProfile profile={profile} />
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-        
+
         {/* Appearance Settings */}
         <section className="glass-panel" style={{ padding: '2rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '1.5rem' }}>
             {isDarkMode ? <Moon size={24} color="var(--primary)" /> : <Sun size={24} color="var(--warning)" />}
             <h3 style={{ fontSize: '1.25rem' }}>Appearance</h3>
           </div>
-          
+
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem', background: 'var(--input-bg)', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
             <div>
               <h4 style={{ fontSize: '1rem', marginBottom: '4px' }}>Dark Theme</h4>
               <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Switch between Light and Dark mode globally.</p>
             </div>
-            
+
             {/* Custom Toggle Switch */}
-            <div 
+            <div
               onClick={toggleTheme}
               style={{
-                width: '56px', height: '30px', 
-                background: isDarkMode ? 'var(--primary)' : 'var(--text-muted)', 
+                width: '56px', height: '30px',
+                background: isDarkMode ? 'var(--primary)' : 'var(--text-muted)',
                 borderRadius: '30px', position: 'relative', cursor: 'pointer',
                 transition: 'background 0.3s'
               }}

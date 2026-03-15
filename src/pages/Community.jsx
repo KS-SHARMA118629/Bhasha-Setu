@@ -1,259 +1,202 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
-import {
-  BadgeCheck, MessageCircle, Users, Search, Plus, Loader2
-} from 'lucide-react';
-import './Community.css';
+import { getOrCreateConversation, setPresence } from '../lib/chatUtils';
+import UserCard from '../components/chat/UserCard';
+import ChatWindow from '../components/chat/ChatWindow';
+import { Search, Users, CheckCircle, X, MessageCircle } from 'lucide-react';
 
-
-const getAvatarUrl = (profile) =>
-  profile?.avatar_url || profile?.profile_picture_url || null;
-
-const Avatar = ({ profile, size = 48 }) => {
-  const url = getAvatarUrl(profile);
-  return (
-    <div className="cm-avatar-ring" style={{ width: size, height: size }}>
-      {url ? (
-        <img src={url} alt={profile?.name} className="cm-avatar-img" />
-      ) : (
-        <div className="cm-avatar-placeholder">
-          {(profile?.name || '?')[0].toUpperCase()}
-        </div>
-      )}
-    </div>
-  );
-};
-
-const OnlineDot = ({ isOnline }) => (
-  <span className={`cm-online-dot ${isOnline ? 'cm-online' : 'cm-offline'}`} />
-);
-
-// ─── Community Page ──────────────────────────────────────────────────────────
 const Community = ({ session }) => {
-  const navigate   = useNavigate();
-  const [users,    setUsers]    = useState([]);
-  const [presence, setPresence] = useState({});
-  const [search,   setSearch]   = useState('');
-  const [loading,  setLoading]  = useState(true);
-  const [creating, setCreating] = useState(false);
-  const [showGroupModal, setShowGroupModal] = useState(false);
-  const [groupName, setGroupName] = useState('');
-  const [selectedUsers, setSelectedUsers] = useState([]);
+  const [users, setUsers] = useState([]);
+  const [presence, setPresenceMap] = useState({}); // { userId: { is_online, last_seen } }
+  const [search, setSearch] = useState('');
+  const [filterVerified, setFilterVerified] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  // Fetch all users except self
+  // Chat state
+  const [activeChatUser, setActiveChatUser] = useState(null);
+  const [activeConvoId, setActiveConvoId] = useState(null);
+  const [openingChat, setOpeningChat] = useState(false);
+
+  // ── Set own online status ─────────────────────────────────────────
   useEffect(() => {
-    if (!session) return;
-    const fetchUsers = async () => {
+    if (!session?.user?.id) return;
+    setPresence(session.user.id, true);
+
+    const handleUnload = () => setPresence(session.user.id, false);
+    window.addEventListener('beforeunload', handleUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleUnload);
+      setPresence(session.user.id, false);
+    };
+  }, [session?.user?.id]);
+
+  // ── Fetch users ───────────────────────────────────────────────────
+  useEffect(() => {
+    const loadUsers = async () => {
       const { data } = await supabase
         .from('profiles')
-        .select('id, name, avatar_url, profile_picture_url, verified, role')
-        .neq('id', session.user.id)
+        .select('id, name, username, avatar_url, profile_picture_url, verified, bio')
         .order('name');
-      setUsers(data || []);
+
+      if (data) setUsers(data);
       setLoading(false);
     };
-    fetchUsers();
-  }, [session]);
+    loadUsers();
+  }, []);
 
-  // Fetch & subscribe to presence
+  // ── Subscribe to presence ─────────────────────────────────────────
   useEffect(() => {
     const fetchPresence = async () => {
       const { data } = await supabase.from('user_presence').select('*');
-      const map = {};
-      (data || []).forEach(p => { map[p.user_id] = p; });
-      setPresence(map);
+      if (data) {
+        const map = {};
+        data.forEach((p) => (map[p.user_id] = p));
+        setPresenceMap(map);
+      }
     };
     fetchPresence();
 
     const channel = supabase
-      .channel('presence-community')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'user_presence' }, fetchPresence)
+      .channel('community-presence')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'user_presence' }, (payload) => {
+        const p = payload.new || payload.old;
+        if (p) setPresenceMap((prev) => ({ ...prev, [p.user_id]: p }));
+      })
       .subscribe();
+
     return () => supabase.removeChannel(channel);
   }, []);
 
-  // Find or create DM conversation then navigate to chat
-  const openDM = async (otherUser) => {
-    setCreating(true);
-    // Check if DM already exists
-    const { data: existing } = await supabase.rpc
-      ? null : null; // Skip RPC, do manual check
-
-    // Get all conversations where current user is a member
-    const { data: myConvs } = await supabase
-      .from('conversation_members')
-      .select('conversation_id')
-      .eq('user_id', session.user.id);
-
-    const myIds = (myConvs || []).map(c => c.conversation_id);
-
-    let convId = null;
-    if (myIds.length > 0) {
-      // Find a non-group conversation that also has otherUser
-      const { data: shared } = await supabase
-        .from('conversation_members')
-        .select('conversation_id, conversations!inner(is_group)')
-        .eq('user_id', otherUser.id)
-        .in('conversation_id', myIds)
-        .eq('conversations.is_group', false);
-
-      if (shared?.length > 0) convId = shared[0].conversation_id;
+  // ── Open chat with a user ─────────────────────────────────────────
+  const handleChatUser = useCallback(async (user) => {
+    if (openingChat) return;
+    console.log('[Community] Attempting to open chat with user:', user.name || user.id);
+    setOpeningChat(true);
+    
+    try {
+      const convoId = await getOrCreateConversation(session.user.id, user.id);
+      console.log('[Community] Convo initialized with ID:', convoId);
+      setActiveConvoId(convoId);
+      setActiveChatUser(user);
+    } catch (err) {
+      console.error('[Community] Critical Error opening chat:', err);
+      // Detailed error in alert for debugging
+      const msg = err.message || JSON.stringify(err);
+      alert(`Chat Error: ${msg}\n\nPlease check the browser console for details.`);
+    } finally {
+      setOpeningChat(false);
     }
+  }, [session?.user?.id, openingChat]);
 
-    if (!convId) {
-      // Create new DM conversation
-      const { data: conv } = await supabase
-        .from('conversations')
-        .insert({ is_group: false, created_by: session.user.id })
-        .select()
-        .single();
-      convId = conv.id;
-      await supabase.from('conversation_members').insert([
-        { conversation_id: convId, user_id: session.user.id },
-        { conversation_id: convId, user_id: otherUser.id },
-      ]);
-    }
-
-    setCreating(false);
-    navigate(`/community/chat/${convId}`, { state: { otherUser } });
+  const handleCloseChat = () => {
+    setActiveChatUser(null);
+    setActiveConvoId(null);
   };
 
-  // Create group chat
-  const createGroup = async () => {
-    if (!groupName.trim() || selectedUsers.length < 1) return;
-    setCreating(true);
-    const { data: conv } = await supabase
-      .from('conversations')
-      .insert({ is_group: true, group_name: groupName.trim(), created_by: session.user.id })
-      .select().single();
+  // ── Filter users ──────────────────────────────────────────────────
+  const filtered = users.filter((u) => {
+    const q = search.toLowerCase();
+    const matchSearch =
+      !search ||
+      u.name?.toLowerCase().includes(q) ||
+      u.username?.toLowerCase().includes(q);
+    const matchVerified = !filterVerified || u.verified;
+    return matchSearch && matchVerified;
+  });
 
-    const members = [
-      { conversation_id: conv.id, user_id: session.user.id, is_admin: true },
-      ...selectedUsers.map(uid => ({ conversation_id: conv.id, user_id: uid })),
-    ];
-    await supabase.from('conversation_members').insert(members);
-    setCreating(false);
-    setShowGroupModal(false);
-    setGroupName('');
-    setSelectedUsers([]);
-    navigate(`/community/chat/${conv.id}`, { state: { isGroup: true, groupName: groupName.trim() } });
-  };
+  const onlineCount = Object.values(presence).filter((p) => p.is_online).length;
 
-  const filtered = users.filter(u =>
-    u.name?.toLowerCase().includes(search.toLowerCase())
-  );
-
-  if (!session) return (
-    <div className="cm-auth-wall">
-      <MessageCircle size={48} color="var(--primary)" />
-      <p>Please log in to access the Community.</p>
-    </div>
-  );
+  if (!session) {
+    return (
+      <div style={{ textAlign: 'center', marginTop: '4rem', color: 'var(--text-muted)' }}>
+        Please login to see the community.
+      </div>
+    );
+  }
 
   return (
-    <div className="cm-page">
-      {/* ── Sidebar header ── */}
-      <div className="cm-header">
-        <div className="cm-header-top">
-          <div className="cm-header-title">
-            <Users size={22} color="var(--primary)" />
-            <h1>Community</h1>
+    <div className="community-layout">
+      {/* ── Left panel: user list ──────────────────────────────── */}
+      <div className={`community-sidebar ${activeChatUser ? 'community-sidebar--hidden-mobile' : ''}`}>
+        {/* Header */}
+        <div className="community-sidebar-header">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <MessageCircle size={22} color="var(--primary)" />
+            <h2 style={{ fontSize: '1.2rem', fontWeight: 800, margin: 0 }}>Community</h2>
           </div>
-          <button className="cm-group-btn" title="Create group chat" onClick={() => setShowGroupModal(true)}>
-            <Plus size={20} />
+          <div className="community-stats">
+            <span className="online-pill">
+              <span className="online-dot-sm" /> {onlineCount} online
+            </span>
+            <span style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>{users.length} members</span>
+          </div>
+        </div>
+
+        {/* Search */}
+        <div className="community-search-wrap">
+          <Search size={16} className="community-search-icon" />
+          <input
+            type="text"
+            className="community-search"
+            placeholder="Search members..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+          {search && (
+            <button className="community-search-clear" onClick={() => setSearch('')}>
+              <X size={15} />
+            </button>
+          )}
+        </div>
+
+        {/* Filters */}
+        <div className="community-filters">
+          <button
+            className={`filter-chip ${filterVerified ? 'filter-chip--active' : ''}`}
+            onClick={() => setFilterVerified((v) => !v)}
+          >
+            <CheckCircle size={14} />
+            Verified only
           </button>
         </div>
 
-        <div className="cm-search-wrap">
-          <Search size={16} className="cm-search-icon" />
-          <input
-            className="cm-search"
-            placeholder="Search people…"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-          />
+        {/* User list */}
+        <div className="community-user-list">
+          {loading ? (
+            <div className="community-loading">Loading members...</div>
+          ) : filtered.length === 0 ? (
+            <div className="community-empty">No members found.</div>
+          ) : (
+            filtered.map((u) => (
+              <UserCard
+                key={u.id}
+                profile={u}
+                presence={presence[u.id]}
+                onChat={handleChatUser}
+                isMe={u.id === session.user.id}
+              />
+            ))
+          )}
         </div>
       </div>
 
-      {/* ── User list ── */}
-      <div className="cm-list">
-        {loading ? (
-          <div className="cm-loading"><Loader2 size={28} className="cm-spin" /></div>
-        ) : filtered.length === 0 ? (
-          <p className="cm-empty">No users found.</p>
+      {/* ── Right panel: chat window ───────────────────────────── */}
+      <div className={`community-chat-area ${activeChatUser ? 'community-chat-area--active' : ''}`}>
+        {activeChatUser && activeConvoId ? (
+          <ChatWindow
+            conversationId={activeConvoId}
+            currentUser={{ id: session.user.id }}
+            otherUser={activeChatUser}
+            onBack={handleCloseChat}
+          />
         ) : (
-          filtered.map(user => {
-            const isOnline = presence[user.id]?.is_online;
-            return (
-              <button
-                key={user.id}
-                className="cm-user-card"
-                onClick={() => openDM(user)}
-                disabled={creating}
-              >
-                <div className="cm-user-avatar-wrap">
-                  <Avatar profile={user} size={52} />
-                  <OnlineDot isOnline={isOnline} />
-                </div>
-                <div className="cm-user-info">
-                  <div className="cm-user-name-row">
-                    <span className="cm-user-name">{user.name}</span>
-                    {user.verified && (
-                      <BadgeCheck size={16} fill="#1DA1F2" color="#fff" className="cm-verified" />
-                    )}
-                  </div>
-                  <span className="cm-user-status">
-                    {isOnline ? 'Online' : 'Offline'}
-                    {user.role === 'admin' && <span className="cm-role-chip">Admin</span>}
-                  </span>
-                </div>
-                <MessageCircle size={18} className="cm-dm-icon" />
-              </button>
-            );
-          })
+          <div className="community-chat-placeholder">
+            <MessageCircle size={56} color="var(--border-color)" />
+            <h3>Select someone to chat with</h3>
+            <p>Click on any community member to start a conversation.</p>
+          </div>
         )}
       </div>
-
-      {/* ── Group chat modal ── */}
-      {showGroupModal && (
-        <div className="cm-modal-backdrop" onClick={() => setShowGroupModal(false)}>
-          <div className="cm-modal" onClick={e => e.stopPropagation()}>
-            <h2>Create Group Chat</h2>
-            <input
-              className="cm-modal-input"
-              placeholder="Group name…"
-              value={groupName}
-              onChange={e => setGroupName(e.target.value)}
-            />
-            <p className="cm-modal-sub">Select members</p>
-            <div className="cm-modal-users">
-              {users.map(u => (
-                <label key={u.id} className="cm-modal-user">
-                  <input
-                    type="checkbox"
-                    checked={selectedUsers.includes(u.id)}
-                    onChange={e => {
-                      setSelectedUsers(prev =>
-                        e.target.checked ? [...prev, u.id] : prev.filter(id => id !== u.id)
-                      );
-                    }}
-                  />
-                  <Avatar profile={u} size={32} />
-                  <span>{u.name}</span>
-                  {u.verified && <BadgeCheck size={14} fill="#1DA1F2" color="#fff" />}
-                </label>
-              ))}
-            </div>
-            <div className="cm-modal-actions">
-              <button className="btn-secondary" onClick={() => setShowGroupModal(false)}>Cancel</button>
-              <button className="btn-primary" onClick={createGroup} disabled={creating || !groupName.trim() || selectedUsers.length < 1}>
-                {creating ? 'Creating…' : 'Create Group'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
