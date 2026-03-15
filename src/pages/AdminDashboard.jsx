@@ -1,95 +1,344 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { Users, ShieldCheck, Ban, CheckCircle, RotateCcw } from 'lucide-react';
+import { 
+  Users, ShieldCheck, Ban, CheckCircle, RotateCcw, 
+  Edit3, Search, Key, User as UserIcon
+} from 'lucide-react';
 
 const AdminDashboard = ({ session }) => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [activeTab, setActiveTab] = useState('users');
+  const [showKeyGate, setShowKeyGate] = useState(true);
+  const [inputKey, setInputKey] = useState('');
+  const [errorMsg, setErrorMsg] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [actionLoading, setActionLoading] = useState(null); // track which user is being updated
+  
+  // Edit Modal State
+  const [editingUser, setEditingUser] = useState(null);
+  const [editFormData, setEditFormData] = useState({
+    name: '',
+    role: 'citizen',
+    bio: '',
+    age: '',
+    is_admin: false,
+    verified: false
+  });
 
   useEffect(() => {
-    if (session) checkAdmin();
+    if (session) {
+      const savedKey = sessionStorage.getItem('admin_session_key');
+      if (savedKey) {
+        verifyKey(savedKey);
+      }
+      checkAdminStatus();
+    }
   }, [session]);
 
-  const checkAdmin = async () => {
-    const { data } = await supabase.from('profiles').select('role').eq('id', session.user.id).single();
-    if (data?.role === 'admin') {
-      setIsAdmin(true);
-      fetchUsers();
+  const checkAdminStatus = async () => {
+    try {
+      const { data } = await supabase.from('profiles').select('is_admin, role').eq('id', session.user.id).single();
+      if (data?.is_admin || data?.role === 'admin') {
+        setIsAdmin(true);
+      }
+    } catch (err) {
+      console.error('Admin check failed:', err);
     }
   };
 
-  const fetchUsers = async () => {
-    const { data } = await supabase.from('profiles').select('*').order('created_at', { ascending: false });
-    if (data) setUsers(data);
+  const verifyKey = async (key) => {
+    setLoading(true);
+    try {
+      const { data } = await supabase
+        .from('system_config')
+        .select('value')
+        .eq('key', 'admin_access_key')
+        .single();
+
+      if (data && data.value === key) {
+        setShowKeyGate(false);
+        sessionStorage.setItem('admin_session_key', key);
+        fetchUsers();
+      } else {
+        setErrorMsg('Invalid Access Key');
+        sessionStorage.removeItem('admin_session_key');
+      }
+    } catch (err) {
+      setErrorMsg('Error connecting to security server');
+    }
     setLoading(false);
   };
 
+  const fetchUsers = async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      if (data) setUsers(data);
+    } catch (err) {
+      console.error('Failed to fetch users:', err);
+      alert('Failed to fetch users: ' + err.message);
+    }
+    setLoading(false);
+  };
+
+  const handleKeySubmit = (e) => {
+    e.preventDefault();
+    verifyKey(inputKey);
+  };
+
   const toggleBan = async (id, currentStatus) => {
-    await supabase.from('profiles').update({ is_banned: !currentStatus }).eq('id', id);
-    fetchUsers();
+    setActionLoading(id);
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ is_banned: !currentStatus })
+        .eq('id', id);
+      
+      if (error) throw error;
+      await fetchUsers();
+    } catch (err) {
+      alert('Error updating ban status: ' + err.message);
+    }
+    setActionLoading(null);
   };
 
   const verifyUser = async (id) => {
-    await supabase.from('profiles').update({ verification_status: 'verified' }).eq('id', id);
-    fetchUsers();
+    setActionLoading(id);
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ 
+          verification_status: 'verified', 
+          verified: true 
+        })
+        .eq('id', id);
+      
+      if (error) throw error;
+      await fetchUsers();
+    } catch (err) {
+      alert('Error verifying user: ' + err.message);
+    }
+    setActionLoading(null);
   };
 
-  if (!session) return <p style={{ textAlign: 'center' }}>Please Login</p>;
-  if (!isAdmin && !loading) return <p style={{ textAlign: 'center', color: 'var(--danger)', marginTop: '2rem' }}>Error 403: Admin access required.</p>;
+  const startEditing = (user) => {
+    setEditingUser(user);
+    setEditFormData({
+      name: user.name || '',
+      role: user.role || 'citizen',
+      bio: user.bio || '',
+      age: user.age || '',
+      is_admin: user.is_admin || false,
+      verified: user.verified || false
+    });
+  };
+
+  const saveEdit = async (e) => {
+    e.preventDefault();
+    setActionLoading(editingUser.id);
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          name: editFormData.name,
+          role: editFormData.role,
+          bio: editFormData.bio,
+          age: editFormData.age ? parseInt(editFormData.age) : null,
+          is_admin: editFormData.is_admin,
+          verified: editFormData.verified,
+          verification_status: editFormData.verified ? 'verified' : 'not_verified'
+        })
+        .eq('id', editingUser.id);
+
+      if (error) throw error;
+      setEditingUser(null);
+      await fetchUsers();
+    } catch (err) {
+      alert('Error saving user: ' + err.message);
+    }
+    setActionLoading(null);
+  };
+
+  const filteredUsers = users.filter(u => 
+    (u.name?.toLowerCase().includes(searchTerm.toLowerCase())) || 
+    (u.id.toLowerCase().includes(searchTerm.toLowerCase()))
+  );
+
+  if (!session) return <div className="container" style={{ textAlign: 'center', marginTop: '5rem' }}><h2>Please Log In</h2></div>;
+  if (!isAdmin && !loading) return <div className="container" style={{ textAlign: 'center', marginTop: '5rem', color: 'var(--danger)' }}><h2>403: Admin Only Access</h2></div>;
+
+  if (showKeyGate) {
+    return (
+      <div className="container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '80vh' }}>
+        <div className="glass-panel" style={{ padding: '3rem', width: '100%', maxWidth: '400px', textAlign: 'center' }}>
+          <Key size={48} color="var(--primary)" style={{ marginBottom: '1.5rem' }} />
+          <h2 style={{ marginBottom: '1rem' }}>Admin Access Locked</h2>
+          <p style={{ color: 'var(--text-muted)', marginBottom: '2rem' }}>Please enter the secret master key to proceed.</p>
+          <form onSubmit={handleKeySubmit}>
+            <input 
+              type="password" 
+              className="input-field" 
+              placeholder="Enter Access Key..." 
+              value={inputKey}
+              onChange={(e) => setInputKey(e.target.value)}
+              style={{ marginBottom: '1rem', textAlign: 'center' }}
+              autoFocus
+            />
+            {errorMsg && <p style={{ color: 'var(--danger)', fontSize: '0.85rem', marginBottom: '1rem' }}>{errorMsg}</p>}
+            <button type="submit" className="btn-primary" style={{ width: '100%' }}>Unlock Dashboard</button>
+          </form>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="container">
-      <h1 style={{ fontSize: '2rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-        <ShieldCheck size={32} color="var(--primary)" /> Admin Control Panel
-      </h1>
-
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', marginBottom: '2rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '1rem' }}>
-        <button onClick={() => setActiveTab('users')} className={activeTab === 'users' ? 'btn-primary' : 'btn-secondary'} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <Users size={18} /> Manage Users
-        </button>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', flexWrap: 'wrap', gap: '1rem' }}>
+        <h1 style={{ fontSize: '2rem', display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <ShieldCheck size={36} color="var(--primary)" /> Admin Control Center
+        </h1>
+        <div style={{ position: 'relative', width: '300px' }}>
+          <Search size={18} style={{ position: 'absolute', top: '12px', left: '12px', color: 'var(--text-muted)' }} />
+          <input 
+            type="text" 
+            className="input-field" 
+            style={{ paddingLeft: '40px' }} 
+            placeholder="Search users..." 
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
       </div>
 
-      {activeTab === 'users' && (
-        <div className="glass-panel" style={{ overflowX: 'auto', padding: '1rem' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-            <thead>
-              <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)' }}>
-                <th style={{ padding: '1rem' }}>Name</th>
-                <th style={{ padding: '1rem' }}>Role</th>
-                <th style={{ padding: '1rem' }}>Verification</th>
-                <th style={{ padding: '1rem' }}>Suspended</th>
-                <th style={{ padding: '1rem' }}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {users.map(u => (
-                <tr key={u.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                  <td style={{ padding: '1rem' }}>{u.name}</td>
-                  <td style={{ padding: '1rem', textTransform: 'capitalize' }}>{u.role}</td>
-                  <td style={{ padding: '1rem' }}>
-                    <span style={{ color: u.verification_status === 'verified' ? 'var(--success)' : u.verification_status === 'pending' ? 'var(--warning)' : 'var(--text-muted)' }}>
-                      {u.verification_status.replace('_', ' ')}
+      {loading && users.length === 0 ? (
+        <div style={{ textAlign: 'center', py: '5rem' }}>Loading users...</div>
+      ) : (
+        <div className="responsive-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))' }}>
+          {filteredUsers.map(user => (
+            <div key={user.id} className="glass-panel" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem', opacity: actionLoading === user.id ? 0.6 : 1 }}>
+              <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>
+                <div style={{ width: '60px', height: '60px', borderRadius: '12px', background: 'var(--bg-color-alt)', overflow: 'hidden' }}>
+                  <img src={user.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.name}`} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <h3 style={{ fontSize: '1.2rem', margin: 0 }}>{user.name || 'Anonymous User'}</h3>
+                  <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>{user.id.slice(0, 8)}...</p>
+                  <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: '0.75rem', padding: '2px 8px', borderRadius: '4px', background: user.role === 'admin' ? 'rgba(192, 132, 252, 0.15)' : 'rgba(255, 255, 255, 0.05)', color: user.role === 'admin' ? '#c084fc' : 'var(--text-muted)' }}>
+                      {user.role}
                     </span>
-                  </td>
-                  <td style={{ padding: '1rem', color: u.is_banned ? 'var(--danger)' : 'var(--success)' }}>
-                    {u.is_banned ? 'Yes' : 'No'}
-                  </td>
-                  <td style={{ padding: '1rem', display: 'flex', gap: '0.5rem' }}>
-                    {u.verification_status === 'pending' && (
-                      <button onClick={() => verifyUser(u.id)} className="btn-secondary" style={{ padding: '0.4rem', borderColor: 'var(--success)', color: 'var(--success)' }} title="Verify User">
-                        <CheckCircle size={16} />
-                      </button>
-                    )}
-                    <button onClick={() => toggleBan(u.id, u.is_banned)} className="btn-secondary" style={{ padding: '0.4rem', borderColor: u.is_banned ? 'var(--success)' : 'var(--danger)', color: u.is_banned ? 'var(--success)' : 'var(--danger)' }} title={u.is_banned ? 'Unban User' : 'Ban User'}>
-                      {u.is_banned ? <RotateCcw size={16} /> : <Ban size={16} />}
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                    {user.verified && <span style={{ fontSize: '0.75rem', padding: '2px 8px', borderRadius: '4px', background: 'rgba(16, 185, 129, 0.15)', color: 'var(--success)' }}>Verified</span>}
+                    {user.is_banned && <span style={{ fontSize: '0.75rem', padding: '2px 8px', borderRadius: '4px', background: 'rgba(239, 68, 68, 0.15)', color: 'var(--danger)' }}>Banned</span>}
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ fontSize: '0.9rem' }}>
+                <p style={{ margin: '0.25rem 0' }}><strong>Age:</strong> {user.age || 'N/A'}</p>
+                <p style={{ opacity: 0.8, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                  <strong>Bio:</strong> {user.bio || 'No bio provided.'}
+                </p>
+              </div>
+
+              <div style={{ display: 'flex', gap: '0.5rem', marginTop: 'auto' }}>
+                <button 
+                  onClick={() => startEditing(user)} 
+                  className="btn-secondary" 
+                  disabled={actionLoading === user.id}
+                  style={{ flex: 1, padding: '0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                >
+                  <Edit3 size={16} /> Edit
+                </button>
+                <button 
+                  onClick={() => verifyUser(user.id)} 
+                  className="btn-secondary" 
+                  disabled={user.verified || actionLoading === user.id}
+                  style={{ 
+                    flex: 1, 
+                    padding: '0.5rem', 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'center', 
+                    gap: '6px', 
+                    borderColor: 'var(--success)', 
+                    color: 'var(--success)',
+                    opacity: user.verified ? 0.5 : 1
+                  }}
+                >
+                  <CheckCircle size={16} /> {user.verified ? 'Verified' : 'Verify'}
+                </button>
+                <button 
+                  onClick={() => toggleBan(user.id, user.is_banned)} 
+                  className="btn-secondary" 
+                  disabled={actionLoading === user.id}
+                  style={{ 
+                    padding: '0.5rem', 
+                    borderColor: user.is_banned ? 'var(--success)' : 'var(--danger)', 
+                    color: user.is_banned ? 'var(--success)' : 'var(--danger)' 
+                  }}
+                  title={user.is_banned ? "Unban User" : "Ban User"}
+                >
+                  {user.is_banned ? <RotateCcw size={16} /> : <Ban size={16} />}
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Edit Modal */}
+      {editingUser && (
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(5px)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000, padding: '1rem' }}>
+          <div className="glass-panel" style={{ width: '100%', maxWidth: '500px', padding: '2rem', animation: 'fadeIn 0.2s' }}>
+            <h2 style={{ marginBottom: '1.5rem' }}>Edit User Details</h2>
+            <form onSubmit={saveEdit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '4px', color: 'var(--text-muted)' }}>Name</label>
+                <input type="text" className="input-field" value={editFormData.name} onChange={e => setEditFormData({...editFormData, name: e.target.value})} placeholder="User Name" />
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '4px', color: 'var(--text-muted)' }}>Role</label>
+                  <select className="input-field" value={editFormData.role} onChange={e => setEditFormData({...editFormData, role: e.target.value})}>
+                    <option value="citizen">Citizen</option>
+                    <option value="official">Official</option>
+                    <option value="admin">Admin</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '4px', color: 'var(--text-muted)' }}>Age</label>
+                  <input type="number" className="input-field" value={editFormData.age} onChange={e => setEditFormData({...editFormData, age: e.target.value})} placeholder="Age" />
+                </div>
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', marginBottom: '4px', color: 'var(--text-muted)' }}>Bio</label>
+                <textarea className="input-field" style={{ minHeight: '100px' }} value={editFormData.bio} onChange={e => setEditFormData({...editFormData, bio: e.target.value})} placeholder="Short bio..." />
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1.5rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <input type="checkbox" id="is_admin" checked={editFormData.is_admin} onChange={e => setEditFormData({...editFormData, is_admin: e.target.checked})} />
+                  <label htmlFor="is_admin">Is System Admin</label>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <input type="checkbox" id="verified_user" checked={editFormData.verified} onChange={e => setEditFormData({...editFormData, verified: e.target.checked})} />
+                  <label htmlFor="verified_user">Verified Profile</label>
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
+                <button type="button" onClick={() => setEditingUser(null)} className="btn-secondary" style={{ flex: 1 }}>Cancel</button>
+                <button type="submit" className="btn-primary" style={{ flex: 1 }} disabled={actionLoading !== null}>
+                  {actionLoading ? 'Saving...' : 'Save Changes'}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </div>

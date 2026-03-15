@@ -48,7 +48,9 @@ const UserProfile = ({ profile }) => {
             </div>
           )}
         </div>
-        <p className="user-role">Official Member</p>
+        <p className="user-role">{profile.role || 'Official Member'}</p>
+        {profile.age && <p className="user-age" style={{ fontSize: '0.9rem', opacity: 0.7 }}>Age: {profile.age}</p>}
+        {profile.bio && <p className="user-bio" style={{ fontSize: '0.9rem', opacity: 0.8, marginTop: '8px', fontStyle: 'italic' }}>"{profile.bio}"</p>}
       </div>
     </div>
   );

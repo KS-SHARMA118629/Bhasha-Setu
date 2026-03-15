@@ -14,6 +14,8 @@ const Profile = ({ session }) => {
   const [address, setAddress] = useState('');
   const [lang, setLang] = useState('en');
   const [govIdUrl, setGovIdUrl] = useState('');
+  const [bio, setBio] = useState('');
+  const [age, setAge] = useState('');
 
   useEffect(() => {
     if (session) fetchProfile();
@@ -33,6 +35,8 @@ const Profile = ({ session }) => {
       setAddress(data.address || '');
       setLang(data.preferred_language || 'en');
       setGovIdUrl(data.government_id_url || '');
+      setBio(data.bio || '');
+      setAge(data.age || '');
     }
     setLoading(false);
   };
@@ -42,7 +46,15 @@ const Profile = ({ session }) => {
     setSaving(true);
     const { error } = await supabase
       .from('profiles')
-      .update({ name, phone_number: phone, address, preferred_language: lang, government_id_url: govIdUrl })
+      .update({ 
+        name, 
+        phone_number: phone, 
+        address, 
+        preferred_language: lang, 
+        government_id_url: govIdUrl,
+        bio,
+        age: age ? parseInt(age) : null
+      })
       .eq('id', session.user.id);
     setSaving(false);
     if (!error) fetchProfile();
@@ -216,6 +228,34 @@ const Profile = ({ session }) => {
               <option value="bn">Bengali (বাংলা)</option>
               <option value="mr">Marathi (मराठी)</option>
             </select>
+          </div>
+
+          {/* Age */}
+          <div style={{ position: 'relative' }}>
+            <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-muted)', fontSize: '0.85rem', fontWeight: 600 }}>
+              Age
+            </label>
+            <input
+              type="number"
+              className="input-field"
+              value={age}
+              onChange={(e) => setAge(e.target.value)}
+              placeholder="Your age"
+            />
+          </div>
+
+          {/* Bio */}
+          <div style={{ position: 'relative' }}>
+            <label style={{ display: 'block', marginBottom: '8px', color: 'var(--text-muted)', fontSize: '0.85rem', fontWeight: 600 }}>
+              Bio
+            </label>
+            <textarea
+              className="input-field"
+              style={{ minHeight: '100px', paddingTop: '10px' }}
+              value={bio}
+              onChange={(e) => setBio(e.target.value)}
+              placeholder="Tell us about yourself..."
+            />
           </div>
 
           <hr style={{ borderColor: 'var(--border-color)', margin: '0.25rem 0' }} />

@@ -1,10 +1,35 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { LogOut, Globe2, User, Home, LayoutDashboard, Menu, X, Settings as SettingsIcon, Users } from 'lucide-react';
+import { LogOut, Globe2, User, Home, LayoutDashboard, Menu, X, Settings as SettingsIcon, Users, ShieldCheck } from 'lucide-react';
 
 const Navbar = ({ session }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    if (session) {
+      checkAdmin();
+    } else {
+      setIsAdmin(false);
+    }
+  }, [session]);
+
+  const checkAdmin = async () => {
+    try {
+      const { data } = await supabase
+        .from('profiles')
+        .select('role, is_admin')
+        .eq('id', session.user.id)
+        .single();
+      
+      if (data?.role === 'admin' || data?.is_admin === true) {
+        setIsAdmin(true);
+      }
+    } catch (err) {
+      console.error('Error checking admin status:', err);
+    }
+  };
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -35,6 +60,9 @@ const Navbar = ({ session }) => {
               <Link to="/profile" onClick={closeMenu} className="nav-item"><User size={18}/> Profile</Link>
               <Link to="/settings" onClick={closeMenu} className="nav-item"><SettingsIcon size={18}/> Settings</Link>
               <Link to="/download" onClick={closeMenu} className="nav-item">Download</Link>
+              {isAdmin && (
+                <Link to="/admin" onClick={closeMenu} className="nav-item"><ShieldCheck size={18}/> Admin</Link>
+              )}
               <button onClick={() => { handleLogout(); closeMenu(); }} className="btn-secondary logout-btn">
                 <LogOut size={16}/> Logout
               </button>
