@@ -13,6 +13,7 @@ import AdminDashboard from './pages/AdminDashboard';
 import Settings from './pages/Settings';
 import Navbar from './components/Navbar';
 import Community from './pages/Community';
+import DownloadApp from './pages/DownloadApp';
 import './components/chat/chat.css';
 
 function App() {
@@ -59,6 +60,7 @@ function App() {
         <Route path="/admin" element={<AdminDashboard session={session} />} />
         <Route path="/settings" element={<Settings session={session} />} />
         <Route path="/community" element={<Community session={session} />} />
+        <Route path="/download" element={<DownloadApp />} />
       </Routes>
     </>
   );

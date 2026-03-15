@@ -34,6 +34,7 @@ const Navbar = ({ session }) => {
               <Link to="/helpdesk" onClick={closeMenu} className="nav-item">Helpdesk</Link>
               <Link to="/profile" onClick={closeMenu} className="nav-item"><User size={18}/> Profile</Link>
               <Link to="/settings" onClick={closeMenu} className="nav-item"><SettingsIcon size={18}/> Settings</Link>
+              <Link to="/download" onClick={closeMenu} className="nav-item">Download</Link>
               <button onClick={() => { handleLogout(); closeMenu(); }} className="btn-secondary logout-btn">
                 <LogOut size={16}/> Logout
               </button>
@@ -41,6 +42,7 @@ const Navbar = ({ session }) => {
             </>
           ) : (
             <div className="auth-buttons">
+              <Link to="/download" onClick={closeMenu} className="nav-item" style={{ marginRight: '1rem' }}>Download</Link>
               <Link to="/login" onClick={closeMenu} className="btn-secondary">Login</Link>
               <Link to="/register" onClick={closeMenu} className="btn-primary">Register</Link>
             </div>
