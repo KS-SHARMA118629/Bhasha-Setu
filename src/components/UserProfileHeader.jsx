@@ -1,8 +1,29 @@
-import React from 'react';
-import { BadgeCheck, User } from 'lucide-react';
+import { BadgeCheck, User, Share2, Copy, Check } from 'lucide-react';
+import { useState } from 'react';
 
 const UserProfileHeader = ({ profile }) => {
+  const [copied, setCopied] = useState(false);
+
   if (!profile) return null;
+
+  const profileUrl = `${window.location.origin}/profile/${profile.username || profile.id}`;
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(profileUrl);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleShare = () => {
+    if (navigator.share) {
+      navigator.share({
+        title: `${profile.name}'s Profile on BhashaSetu`,
+        url: profileUrl,
+      }).catch(err => console.error('Error sharing', err));
+    } else {
+      handleCopy();
+    }
+  };
 
   return (
     <div style={{
@@ -64,6 +85,24 @@ const UserProfileHeader = ({ profile }) => {
             {profile.preferred_language ? profile.preferred_language.toUpperCase() : 'EN'} Enabled
           </span>
         </div>
+      </div>
+
+      <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px' }}>
+        <button 
+          onClick={handleCopy} 
+          className="btn-secondary" 
+          style={{ padding: '0.5rem', display: 'flex', alignItems: 'center', gap: '6px' }}
+          title="Copy Link"
+        >
+          {copied ? <Check size={18} color="var(--success)" /> : <Copy size={18} />}
+        </button>
+        <button 
+          onClick={handleShare} 
+          className="btn-primary" 
+          style={{ padding: '0.5rem 1rem', display: 'flex', alignItems: 'center', gap: '6px' }}
+        >
+          <Share2 size={18} /> Share Profile
+        </button>
       </div>
     </div>
   );

@@ -6,7 +6,7 @@ import ChatInput from './ChatInput';
 
 const PAGE_SIZE = 40;
 
-const ChatWindow = ({ conversationId, currentUser, otherUser, onBack }) => {
+const ChatWindow = ({ conversationId, currentUser, otherUser, isGroup, groupData, onBack, onGroupUpdated }) => {
   const [messages, setMessages] = useState([]);
   const [profiles, setProfiles] = useState({});    // { userId: profileObj }
   const [typingUsers, setTypingUsers] = useState([]);
@@ -212,7 +212,7 @@ const ChatWindow = ({ conversationId, currentUser, otherUser, onBack }) => {
   };
 
   // ── Render ────────────────────────────────────────────────────────────
-  const conversation = { id: conversationId };
+  const conversation = isGroup ? groupData : { id: conversationId };
 
   return (
     <div className="chat-window">
@@ -221,7 +221,9 @@ const ChatWindow = ({ conversationId, currentUser, otherUser, onBack }) => {
         otherUser={otherUser}
         presence={presence}
         onBack={onBack}
-        isGroup={false}
+        isGroup={isGroup}
+        onGroupUpdated={onGroupUpdated}
+        session={{user: currentUser}}
       />
 
       <div className="chat-window-body">

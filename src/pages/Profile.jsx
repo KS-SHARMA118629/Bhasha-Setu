@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { User, Phone, MapPin, Globe, Link2, BadgeCheck } from 'lucide-react';
+import { User, Phone, MapPin, Globe, Link2, BadgeCheck, Share2, Copy, Check } from 'lucide-react';
 import AvatarUpload from '../components/AvatarUpload';
 
 const Profile = ({ session }) => {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   // Form fields
   const [name, setName] = useState('');
@@ -73,6 +74,25 @@ const Profile = ({ session }) => {
   // Called by AvatarUpload after a successful upload
   const handleAvatarChange = (newUrl) => {
     setProfile((prev) => ({ ...prev, avatar_url: newUrl, profile_picture_url: newUrl }));
+  };
+
+  const handleCopyLink = () => {
+    const url = `${window.location.origin}/profile/${profile?.username || profile?.id}`;
+    navigator.clipboard.writeText(url);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleShare = () => {
+    const url = `${window.location.origin}/profile/${profile?.username || profile?.id}`;
+    if (navigator.share) {
+      navigator.share({
+        title: `${profile?.name}'s Profile on BhashaSetu`,
+        url,
+      }).catch(err => console.error('Error sharing', err));
+    } else {
+      handleCopyLink();
+    }
   };
 
   if (!session) return <p style={{ textAlign: 'center', marginTop: '3rem' }}>Please Login</p>;
@@ -145,11 +165,33 @@ const Profile = ({ session }) => {
             fontWeight: 700,
             textTransform: 'uppercase',
             letterSpacing: '0.05em',
+            marginBottom: '10px'
           }}
         >
           {profile?.verification_status === 'verified' && <BadgeCheck size={14} />}
           {profile?.verification_status?.replace(/_/g, ' ')}
         </span>
+
+        {/* Share Profile Actions */}
+        <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+          <button 
+            type="button"
+            onClick={handleCopyLink} 
+            className="btn-secondary" 
+            style={{ padding: '0.5rem', display: 'flex', alignItems: 'center', gap: '6px' }}
+            title="Copy Profile Link"
+          >
+            {copied ? <Check size={18} color="var(--success)" /> : <Copy size={18} />}
+          </button>
+          <button 
+            type="button"
+            onClick={handleShare} 
+            className="btn-primary" 
+            style={{ padding: '0.5rem 1rem', display: 'flex', alignItems: 'center', gap: '6px' }}
+          >
+            <Share2 size={18} /> Share Profile
+          </button>
+        </div>
       </div>
 
       {/* ── Edit form ─────────────────────────────────────────────── */}

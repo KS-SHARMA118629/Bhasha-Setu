@@ -1,23 +1,28 @@
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
-import { getOrCreateConversation, setPresence } from '../lib/chatUtils';
+import GroupCard from '../components/chat/GroupCard';
 import UserCard from '../components/chat/UserCard';
 import ChatWindow from '../components/chat/ChatWindow';
-import { Search, Users, CheckCircle, X, MessageCircle } from 'lucide-react';
+import { Search, Users, Plus, X, MessageCircle, User as UserIcon } from 'lucide-react';
+import CreateGroupModal from '../components/chat/CreateGroupModal';
+import { getOrCreateConversation, setPresence } from '../lib/chatUtils';
 
 const Community = ({ session }) => {
+  const [groups, setGroups] = useState([]);
   const [users, setUsers] = useState([]);
-  const [presence, setPresenceMap] = useState({}); // { userId: { is_online, last_seen } }
+  const [presenceMap, setPresenceMap] = useState({});
   const [search, setSearch] = useState('');
-  const [filterVerified, setFilterVerified] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [showCreateGroup, setShowCreateGroup] = useState(false);
+  const [activeTab, setActiveTab] = useState('groups'); // 'groups' | 'users'
 
   // Chat state
+  const [activeGroup, setActiveGroup] = useState(null);
   const [activeChatUser, setActiveChatUser] = useState(null);
   const [activeConvoId, setActiveConvoId] = useState(null);
   const [openingChat, setOpeningChat] = useState(false);
 
-  // ── Set own online status ─────────────────────────────────────────
+  // Set own online status
   useEffect(() => {
     if (!session?.user?.id) return;
     setPresence(session.user.id, true);
@@ -30,22 +35,41 @@ const Community = ({ session }) => {
     };
   }, [session?.user?.id]);
 
-  // ── Fetch users ───────────────────────────────────────────────────
-  useEffect(() => {
-    const loadUsers = async () => {
-      const { data } = await supabase
-        .from('profiles')
-        .select('id, name, username, avatar_url, profile_picture_url, verified, bio')
-        .order('name');
+  const fetchGroupsAndUsers = async () => {
+    setLoading(true);
+    // Fetch all group conversations and get member counts
+    const { data: convos, error: convoError } = await supabase
+      .from('conversations')
+      .select(`
+        id, name, description, avatar_url, created_at, created_by,
+        conversation_members(count)
+      `)
+      .eq('is_group', true)
+      .order('created_at', { ascending: false });
 
-      if (data) setUsers(data);
-      setLoading(false);
-    };
-    loadUsers();
-  }, []);
+    if (!convoError && convos) {
+      const formatted = convos.map(g => ({
+        ...g,
+        memberCount: g.conversation_members[0].count
+      }));
+      setGroups(formatted);
+    }
 
-  // ── Subscribe to presence ─────────────────────────────────────────
+    // Fetch users
+    const { data: profilesData } = await supabase
+      .from('profiles')
+      .select('id, name, username, avatar_url, profile_picture_url, verified, bio')
+      .order('name');
+    
+    if (profilesData) setUsers(profilesData);
+
+    setLoading(false);
+  };
+
   useEffect(() => {
+    fetchGroupsAndUsers();
+
+    // Fetch initial presence
     const fetchPresence = async () => {
       const { data } = await supabase.from('user_presence').select('*');
       if (data) {
@@ -56,6 +80,7 @@ const Community = ({ session }) => {
     };
     fetchPresence();
 
+    // Subscribe to presence
     const channel = supabase
       .channel('community-presence')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'user_presence' }, (payload) => {
@@ -67,44 +92,50 @@ const Community = ({ session }) => {
     return () => supabase.removeChannel(channel);
   }, []);
 
-  // ── Open chat with a user ─────────────────────────────────────────
+  const handleChatGroup = useCallback((group) => {
+    if (openingChat) return;
+    setOpeningChat(true);
+    setActiveChatUser(null);
+    setActiveConvoId(null);
+    setActiveGroup(group);
+    setOpeningChat(false);
+  }, [openingChat]);
+
   const handleChatUser = useCallback(async (user) => {
     if (openingChat) return;
-    console.log('[Community] Attempting to open chat with user:', user.name || user.id);
     setOpeningChat(true);
-    
     try {
       const convoId = await getOrCreateConversation(session.user.id, user.id);
-      console.log('[Community] Convo initialized with ID:', convoId);
+      setActiveGroup(null);
       setActiveConvoId(convoId);
       setActiveChatUser(user);
     } catch (err) {
-      console.error('[Community] Critical Error opening chat:', err);
-      // Detailed error in alert for debugging
-      const msg = err.message || JSON.stringify(err);
-      alert(`Chat Error: ${msg}\n\nPlease check the browser console for details.`);
+      console.error('Error opening user chat:', err);
     } finally {
       setOpeningChat(false);
     }
   }, [session?.user?.id, openingChat]);
 
   const handleCloseChat = () => {
+    setActiveGroup(null);
     setActiveChatUser(null);
     setActiveConvoId(null);
   };
 
-  // ── Filter users ──────────────────────────────────────────────────
-  const filtered = users.filter((u) => {
+  const handleGroupCreated = () => {
+    setShowCreateGroup(false);
+    fetchGroupsAndUsers();
+  };
+
+  const filteredGroups = groups.filter((g) => {
     const q = search.toLowerCase();
-    const matchSearch =
-      !search ||
-      u.name?.toLowerCase().includes(q) ||
-      u.username?.toLowerCase().includes(q);
-    const matchVerified = !filterVerified || u.verified;
-    return matchSearch && matchVerified;
+    return !search || g.name?.toLowerCase().includes(q) || g.description?.toLowerCase().includes(q);
   });
 
-  const onlineCount = Object.values(presence).filter((p) => p.is_online).length;
+  const filteredUsers = users.filter((u) => {
+    const q = search.toLowerCase();
+    return !search || u.name?.toLowerCase().includes(q) || u.username?.toLowerCase().includes(q);
+  });
 
   if (!session) {
     return (
@@ -116,20 +147,42 @@ const Community = ({ session }) => {
 
   return (
     <div className="community-layout">
-      {/* ── Left panel: user list ──────────────────────────────── */}
-      <div className={`community-sidebar ${activeChatUser ? 'community-sidebar--hidden-mobile' : ''}`}>
+      {/* ── Left panel: group list ──────────────────────────────── */}
+      <div className={`community-sidebar ${(activeGroup || activeChatUser) ? 'community-sidebar--hidden-mobile' : ''}`}>
         {/* Header */}
         <div className="community-sidebar-header">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <MessageCircle size={22} color="var(--primary)" />
-            <h2 style={{ fontSize: '1.2rem', fontWeight: 800, margin: 0 }}>Community</h2>
-          </div>
-          <div className="community-stats">
-            <span className="online-pill">
-              <span className="online-dot-sm" /> {onlineCount} online
-            </span>
-            <span style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>{users.length} members</span>
-          </div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <Users size={22} color="var(--primary)" />
+              <h2 style={{ fontSize: '1.2rem', fontWeight: 800, margin: 0 }}>Community</h2>
+            </div>
+            {activeTab === 'groups' && (
+              <button
+                className="btn-primary"
+                style={{ padding: '6px', borderRadius: '50%' }}
+                onClick={() => setShowCreateGroup(true)}
+                title="Create Group"
+              >
+                <Plus size={20} />
+              </button>
+            )}
+           </div>
+
+           {/* Tabs */}
+           <div style={{ display: 'flex', gap: '8px', marginTop: '12px', background: 'var(--bg-color-alt)', padding: '4px', borderRadius: '12px' }}>
+             <button
+               onClick={() => setActiveTab('groups')}
+               style={{ flex: 1, padding: '6px', borderRadius: '8px', border: 'none', background: activeTab === 'groups' ? 'var(--primary)' : 'transparent', color: activeTab === 'groups' ? '#fff' : 'var(--text-muted)', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', transition: 'all 0.2s' }}
+             >
+               <Users size={16} /> Groups
+             </button>
+             <button
+               onClick={() => setActiveTab('users')}
+               style={{ flex: 1, padding: '6px', borderRadius: '8px', border: 'none', background: activeTab === 'users' ? 'var(--primary)' : 'transparent', color: activeTab === 'users' ? '#fff' : 'var(--text-muted)', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', transition: 'all 0.2s' }}
+             >
+               <UserIcon size={16} /> Members
+             </button>
+           </div>
         </div>
 
         {/* Search */}
@@ -138,7 +191,7 @@ const Community = ({ session }) => {
           <input
             type="text"
             className="community-search"
-            placeholder="Search members..."
+            placeholder={activeTab === 'groups' ? "Search groups..." : "Search members..."}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -149,54 +202,77 @@ const Community = ({ session }) => {
           )}
         </div>
 
-        {/* Filters */}
-        <div className="community-filters">
-          <button
-            className={`filter-chip ${filterVerified ? 'filter-chip--active' : ''}`}
-            onClick={() => setFilterVerified((v) => !v)}
-          >
-            <CheckCircle size={14} />
-            Verified only
-          </button>
-        </div>
-
-        {/* User list */}
+        {/* List */}
         <div className="community-user-list">
           {loading ? (
-            <div className="community-loading">Loading members...</div>
-          ) : filtered.length === 0 ? (
-            <div className="community-empty">No members found.</div>
+            <div className="community-loading">Loading...</div>
+          ) : activeTab === 'groups' ? (
+            filteredGroups.length === 0 ? (
+              <div className="community-empty">No groups found.</div>
+            ) : (
+              filteredGroups.map((g) => (
+                <GroupCard
+                  key={g.id}
+                  group={g}
+                  onChat={handleChatGroup}
+                />
+              ))
+            )
           ) : (
-            filtered.map((u) => (
-              <UserCard
-                key={u.id}
-                profile={u}
-                presence={presence[u.id]}
-                onChat={handleChatUser}
-                isMe={u.id === session.user.id}
-              />
-            ))
+            filteredUsers.length === 0 ? (
+              <div className="community-empty">No members found.</div>
+            ) : (
+              filteredUsers.map((u) => (
+                <UserCard
+                  key={u.id}
+                  profile={u}
+                  presence={presenceMap[u.id]}
+                  onChat={handleChatUser}
+                  isMe={u.id === session.user.id}
+                />
+              ))
+            )
           )}
         </div>
       </div>
 
       {/* ── Right panel: chat window ───────────────────────────── */}
-      <div className={`community-chat-area ${activeChatUser ? 'community-chat-area--active' : ''}`}>
-        {activeChatUser && activeConvoId ? (
+      <div className={`community-chat-area ${(activeGroup || activeChatUser) ? 'community-chat-area--active' : ''}`}>
+        {activeGroup ? (
+          <ChatWindow
+            conversationId={activeGroup.id}
+            currentUser={{ id: session.user.id }}
+            otherUser={null}
+            isGroup={true}
+            groupData={activeGroup}
+            onBack={handleCloseChat}
+            onGroupUpdated={fetchGroupsAndUsers}
+          />
+        ) : activeChatUser && activeConvoId ? (
           <ChatWindow
             conversationId={activeConvoId}
             currentUser={{ id: session.user.id }}
             otherUser={activeChatUser}
+            isGroup={false}
             onBack={handleCloseChat}
           />
         ) : (
           <div className="community-chat-placeholder">
             <MessageCircle size={56} color="var(--border-color)" />
-            <h3>Select someone to chat with</h3>
-            <p>Click on any community member to start a conversation.</p>
+            <h3>Select a chat to begin</h3>
+            <p>Click on any group or community member to start talking.</p>
           </div>
         )}
       </div>
+
+      {/* Create Group Modal */}
+      {showCreateGroup && (
+        <CreateGroupModal
+          session={session}
+          onClose={() => setShowCreateGroup(false)}
+          onCreated={handleGroupCreated}
+        />
+      )}
     </div>
   );
 };

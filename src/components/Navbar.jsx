@@ -22,7 +22,7 @@ const Navbar = ({ session }) => {
         .select('role, is_admin')
         .eq('id', session.user.id)
         .single();
-      
+
       if (data?.role === 'admin' || data?.is_admin === true) {
         setIsAdmin(true);
       }
@@ -45,32 +45,28 @@ const Navbar = ({ session }) => {
           <Globe2 size={28} color="var(--primary)" />
           <span className="text-gradient">BhashaSetu</span>
         </Link>
-        
+
         <div className="mobile-menu-btn" onClick={toggleMenu}>
           {isOpen ? <X size={28} color="var(--text-main)" /> : <Menu size={28} color="var(--text-main)" />}
         </div>
 
         <div className={`nav-links ${isOpen ? 'active' : ''}`}>
-          <Link to="/" onClick={closeMenu} className="nav-item"><Home size={18}/> Home</Link>
+          <Link to="/" onClick={closeMenu} className="nav-item"><Home size={18} /> Home</Link>
           {session ? (
             <>
-              <Link to="/dashboard" onClick={closeMenu} className="nav-item"><LayoutDashboard size={18}/> Dashboard</Link>
-              <Link to="/community" onClick={closeMenu} className="nav-item"><Users size={18}/> Community</Link>
-              <Link to="/helpdesk" onClick={closeMenu} className="nav-item">Helpdesk</Link>
-              <Link to="/profile" onClick={closeMenu} className="nav-item"><User size={18}/> Profile</Link>
-              <Link to="/settings" onClick={closeMenu} className="nav-item"><SettingsIcon size={18}/> Settings</Link>
-              <Link to="/download" onClick={closeMenu} className="nav-item">Download</Link>
+              <Link to="/community" onClick={closeMenu} className="nav-item"><Users size={18} /> Community</Link>
+              <Link to="/profile" onClick={closeMenu} className="nav-item"><User size={18} /> Profile</Link>
+              <Link to="/settings" onClick={closeMenu} className="nav-item"><SettingsIcon size={18} /> Settings</Link>
               {isAdmin && (
-                <Link to="/admin" onClick={closeMenu} className="nav-item"><ShieldCheck size={18}/> Admin</Link>
+                <Link to="/admin" onClick={closeMenu} className="nav-item"><ShieldCheck size={18} /> Admin</Link>
               )}
               <button onClick={() => { handleLogout(); closeMenu(); }} className="btn-secondary logout-btn">
-                <LogOut size={16}/> Logout
+                <LogOut size={16} /> Logout
               </button>
 
             </>
           ) : (
             <div className="auth-buttons">
-              <Link to="/download" onClick={closeMenu} className="nav-item" style={{ marginRight: '1rem' }}>Download</Link>
               <Link to="/login" onClick={closeMenu} className="btn-secondary">Login</Link>
               <Link to="/register" onClick={closeMenu} className="btn-primary">Register</Link>
             </div>
