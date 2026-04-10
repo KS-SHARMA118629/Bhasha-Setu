@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { BadgeCheck, User, Phone, Video, ChevronLeft, MoreVertical, Settings } from 'lucide-react';
+import { BadgeCheck, User, Phone, Video, ChevronLeft, MoreVertical, Settings, Languages, ShieldAlert, UserX } from 'lucide-react';
 import { resolveAvatar, formatLastSeen } from '../../lib/chatUtils';
 import GroupSettingsModal from './GroupSettingsModal';
 import { supabase } from '../../lib/supabase';
@@ -8,7 +8,9 @@ const ChatHeader = ({ conversation, otherUser, presence, onBack, isGroup, sessio
   const isOnline = presence?.is_online;
   const lastSeen = presence?.last_seen;
   const [showSettings, setShowSettings] = useState(false);
+  const [showMoreOpts, setShowMoreOpts] = useState(false);
   const [isMember, setIsMember] = useState(false);
+  const [isTranslating, setIsTranslating] = useState(false);
 
   useEffect(() => {
     if (isGroup && session?.user?.id) {
@@ -100,7 +102,7 @@ const ChatHeader = ({ conversation, otherUser, presence, onBack, isGroup, sessio
         </div>
 
         {/* Actions */}
-        <div className="chat-header-actions">
+        <div className="chat-header-actions" style={{ position: 'relative' }}>
           {isGroup ? (
             <>
               {!isMember ? (
@@ -108,22 +110,51 @@ const ChatHeader = ({ conversation, otherUser, presence, onBack, isGroup, sessio
                   Join Group
                 </button>
               ) : (
-                <button className="chat-header-action-btn" title="Group Settings" onClick={() => setShowSettings(true)}>
-                  <Settings size={20} />
-                </button>
+                <>
+                  <button className={`chat-header-action-btn ${isTranslating ? 'active-translate' : ''}`} title="AI Translation" onClick={() => setIsTranslating(!isTranslating)}>
+                    <Languages size={20} color={isTranslating ? 'var(--primary)' : 'currentColor'} />
+                  </button>
+                  <button className="chat-header-action-btn" title="Voice call">
+                    <Phone size={20} />
+                  </button>
+                  <button className="chat-header-action-btn" title="Video call">
+                    <Video size={20} />
+                  </button>
+                  <button className="chat-header-action-btn" title="Group Settings" onClick={() => setShowSettings(true)}>
+                    <Settings size={20} />
+                  </button>
+                </>
               )}
             </>
           ) : (
             <>
+              <button className={`chat-header-action-btn ${isTranslating ? 'active-translate' : ''}`} title="AI Translation" onClick={() => setIsTranslating(!isTranslating)}>
+                <Languages size={20} color={isTranslating ? 'var(--primary)' : 'currentColor'} />
+              </button>
               <button className="chat-header-action-btn" title="Voice call">
                 <Phone size={20} />
               </button>
               <button className="chat-header-action-btn" title="Video call">
                 <Video size={20} />
               </button>
-              <button className="chat-header-action-btn" title="More options">
+              <button className="chat-header-action-btn" title="More options" onClick={() => setShowMoreOpts(!showMoreOpts)}>
                 <MoreVertical size={20} />
               </button>
+              
+              {showMoreOpts && (
+                <div style={{
+                  position: 'absolute', top: '100%', right: 0, background: 'var(--bg-color)', 
+                  border: '1px solid var(--border-color)', borderRadius: '8px', padding: '5px',
+                  boxShadow: '0 4px 6px rgba(0,0,0,0.1)', zIndex: 100, minWidth: '150px'
+                }}>
+                  <button style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '8px', background: 'transparent', border: 'none', color: 'var(--text-main)', cursor: 'pointer', textAlign: 'left' }} onClick={() => { alert('User Reported'); setShowMoreOpts(false); }}>
+                    <ShieldAlert size={16} /> Report User
+                  </button>
+                  <button style={{ display: 'flex', alignItems: 'center', gap: '8px', width: '100%', padding: '8px', background: 'transparent', border: 'none', color: 'var(--error-color, #ef4444)', cursor: 'pointer', textAlign: 'left' }} onClick={() => { alert('User Blocked'); setShowMoreOpts(false); }}>
+                    <UserX size={16} /> Block User
+                  </button>
+                </div>
+              )}
             </>
           )}
         </div>

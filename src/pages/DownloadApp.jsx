@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import './DownloadApp.css';
 
 const DownloadApp = () => {
@@ -31,12 +32,19 @@ const DownloadApp = () => {
           <div className="actions">
 
             <a
-              href="/bhashasetu-v3.4.apk"
+              href="bhashasetu\src\assets\bhasha.setu.apk"
               className="btn btn-primary download-btn"
               download
             >
               DOWNLOAD APK
             </a>
+
+            <Link
+              to="/home"
+              className="btn btn-secondary continue-btn"
+            >
+              CONTINUE IN WEBSITE
+            </Link>
 
           </div>
 

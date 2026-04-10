@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { 
   Users, ShieldCheck, Ban, CheckCircle, RotateCcw, 
-  Edit3, Search, Key, User as UserIcon
+  Edit3, Search, Key, User as UserIcon, Send, Bell
 } from 'lucide-react';
 
 const AdminDashboard = ({ session }) => {
@@ -14,6 +14,13 @@ const AdminDashboard = ({ session }) => {
   const [errorMsg, setErrorMsg] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [actionLoading, setActionLoading] = useState(null); // track which user is being updated
+  
+  // Notification State
+  const [notifTitle, setNotifTitle] = useState('');
+  const [notifMessage, setNotifMessage] = useState('');
+  const [notifType, setNotifType] = useState('info');
+  const [sendingNotif, setSendingNotif] = useState(false);
+  const [notifStatus, setNotifStatus] = useState('');
   
   // Edit Modal State
   const [editingUser, setEditingUser] = useState(null);
@@ -165,6 +172,30 @@ const AdminDashboard = ({ session }) => {
     setActionLoading(null);
   };
 
+  const handleSendNotification = async (e) => {
+    e.preventDefault();
+    if (!notifTitle || !notifMessage) return;
+    setSendingNotif(true);
+    setNotifStatus('');
+    try {
+      const { error } = await supabase.from('system_notifications').insert({
+        title: notifTitle,
+        message: notifMessage,
+        type: notifType,
+        sender_id: session.user.id
+      });
+      if (error) throw error;
+      setNotifStatus('Notification sent successfully!');
+      setNotifTitle('');
+      setNotifMessage('');
+    } catch (err) {
+      console.warn('Notification failed (check if table exists):', err.message);
+      setNotifStatus('Failed to send (Does system_notifications table exist?)');
+    }
+    setSendingNotif(false);
+    setTimeout(() => setNotifStatus(''), 5000);
+  };
+
   const filteredUsers = users.filter(u => 
     (u.name?.toLowerCase().includes(searchTerm.toLowerCase())) || 
     (u.id.toLowerCase().includes(searchTerm.toLowerCase()))
@@ -215,6 +246,49 @@ const AdminDashboard = ({ session }) => {
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
+      </div>
+
+      {/* Broadcast System Notification Panel */}
+      <div className="glass-panel" style={{ padding: '1.5rem', marginBottom: '2rem' }}>
+        <h2 style={{ fontSize: '1.25rem', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1rem' }}>
+          <Bell size={24} color="var(--primary)" /> Send System Notification
+        </h2>
+        <form onSubmit={handleSendNotification} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr 1fr', gap: '1rem', alignItems: 'flex-start' }}>
+            <input 
+              type="text" 
+              className="input-field" 
+              placeholder="Notification Title" 
+              value={notifTitle}
+              onChange={(e) => setNotifTitle(e.target.value)}
+              required
+            />
+            <input 
+              type="text" 
+              className="input-field" 
+              placeholder="Message description..." 
+              value={notifMessage}
+              onChange={(e) => setNotifMessage(e.target.value)}
+              required
+            />
+            <select 
+              className="input-field" 
+              value={notifType} 
+              onChange={(e) => setNotifType(e.target.value)}
+            >
+              <option value="info">Info</option>
+              <option value="alert">Alert</option>
+              <option value="message">Message</option>
+              <option value="security">Security</option>
+            </select>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '1rem' }}>
+            {notifStatus && <span style={{ color: notifStatus.includes('Failed') ? 'var(--danger)' : 'var(--success)', fontSize: '0.9rem' }}>{notifStatus}</span>}
+            <button type="submit" className="btn-primary" disabled={sendingNotif}>
+              {sendingNotif ? 'Sending...' : <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Send size={16} /> Broadcast</span>}
+            </button>
+          </div>
+        </form>
       </div>
 
       {loading && users.length === 0 ? (

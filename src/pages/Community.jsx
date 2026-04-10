@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase';
 import GroupCard from '../components/chat/GroupCard';
 import UserCard from '../components/chat/UserCard';
 import ChatWindow from '../components/chat/ChatWindow';
-import { Search, Users, Plus, X, MessageCircle, User as UserIcon } from 'lucide-react';
+import { Search, Users, Plus, X, MessageCircle, User as UserIcon, TrendingUp } from 'lucide-react';
 import CreateGroupModal from '../components/chat/CreateGroupModal';
 import { getOrCreateConversation, setPresence } from '../lib/chatUtils';
 
@@ -14,7 +14,7 @@ const Community = ({ session }) => {
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [showCreateGroup, setShowCreateGroup] = useState(false);
-  const [activeTab, setActiveTab] = useState('groups'); // 'groups' | 'users'
+  const [activeTab, setActiveTab] = useState('groups'); // 'groups' | 'trending' | 'users'
 
   // Chat state
   const [activeGroup, setActiveGroup] = useState(null);
@@ -132,6 +132,13 @@ const Community = ({ session }) => {
     return !search || g.name?.toLowerCase().includes(q) || g.description?.toLowerCase().includes(q);
   });
 
+  const sortedGroups = [...filteredGroups].sort((a, b) => {
+    if (activeTab === 'trending') {
+      return b.memberCount - a.memberCount;
+    }
+    return new Date(b.created_at) - new Date(a.created_at);
+  });
+
   const filteredUsers = users.filter((u) => {
     const q = search.toLowerCase();
     return !search || u.name?.toLowerCase().includes(q) || u.username?.toLowerCase().includes(q);
@@ -177,6 +184,12 @@ const Community = ({ session }) => {
                <Users size={16} /> Groups
              </button>
              <button
+               onClick={() => setActiveTab('trending')}
+               style={{ flex: 1, padding: '6px', borderRadius: '8px', border: 'none', background: activeTab === 'trending' ? 'var(--primary)' : 'transparent', color: activeTab === 'trending' ? '#fff' : 'var(--text-muted)', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', transition: 'all 0.2s' }}
+             >
+               <TrendingUp size={16} /> Trending
+             </button>
+             <button
                onClick={() => setActiveTab('users')}
                style={{ flex: 1, padding: '6px', borderRadius: '8px', border: 'none', background: activeTab === 'users' ? 'var(--primary)' : 'transparent', color: activeTab === 'users' ? '#fff' : 'var(--text-muted)', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', transition: 'all 0.2s' }}
              >
@@ -191,7 +204,7 @@ const Community = ({ session }) => {
           <input
             type="text"
             className="community-search"
-            placeholder={activeTab === 'groups' ? "Search groups..." : "Search members..."}
+            placeholder={activeTab === 'users' ? "Search members..." : "Search groups..."}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -206,19 +219,7 @@ const Community = ({ session }) => {
         <div className="community-user-list">
           {loading ? (
             <div className="community-loading">Loading...</div>
-          ) : activeTab === 'groups' ? (
-            filteredGroups.length === 0 ? (
-              <div className="community-empty">No groups found.</div>
-            ) : (
-              filteredGroups.map((g) => (
-                <GroupCard
-                  key={g.id}
-                  group={g}
-                  onChat={handleChatGroup}
-                />
-              ))
-            )
-          ) : (
+          ) : activeTab === 'users' ? (
             filteredUsers.length === 0 ? (
               <div className="community-empty">No members found.</div>
             ) : (
@@ -232,6 +233,16 @@ const Community = ({ session }) => {
                 />
               ))
             )
+          ) : sortedGroups.length === 0 ? (
+            <div className="community-empty">No groups found.</div>
+          ) : (
+            sortedGroups.map((g) => (
+              <GroupCard
+                key={g.id}
+                group={g}
+                onChat={handleChatGroup}
+              />
+            ))
           )}
         </div>
       </div>

@@ -1,4 +1,4 @@
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, useLocation } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { supabase } from './lib/supabase';
 
@@ -14,11 +14,13 @@ import Settings from './pages/Settings';
 import Navbar from './components/Navbar';
 import Community from './pages/Community';
 import DownloadApp from './pages/DownloadApp';
+import Notifications from './pages/Notifications';
 import './components/chat/chat.css';
 
 function App() {
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
+  const location = useLocation();
 
   useEffect(() => {
     // Determine Dark/Light Mode on global mount
@@ -45,11 +47,14 @@ function App() {
     return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', color: 'var(--primary)'}}>Loading...</div>;
   }
 
+  const showNavbar = location.pathname !== '/';
+
   return (
     <>
-      <Navbar session={session} />
+      {showNavbar && <Navbar session={session} />}
       <Routes>
-        <Route path="/" element={<Home session={session} />} />
+        <Route path="/" element={<DownloadApp />} />
+        <Route path="/home" element={<Home session={session} />} />
         <Route path="/login" element={<Login session={session} />} />
         <Route path="/register" element={<Register session={session} />} />
         
@@ -60,6 +65,7 @@ function App() {
         <Route path="/admin" element={<AdminDashboard session={session} />} />
         <Route path="/settings" element={<Settings session={session} />} />
         <Route path="/community" element={<Community session={session} />} />
+        <Route path="/notifications" element={<Notifications session={session} />} />
         <Route path="/download" element={<DownloadApp />} />
       </Routes>
     </>

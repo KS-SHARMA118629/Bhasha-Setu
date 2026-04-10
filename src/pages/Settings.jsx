@@ -12,12 +12,16 @@ const Settings = ({ session }) => {
 
   const [saving, setSaving] = useState(false);
   const [profile, setProfile] = useState(null);
+  const [isPrivateProfile, setIsPrivateProfile] = useState(false);
 
   useEffect(() => {
     if (session) {
       const getProfile = async () => {
         const { data } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
         setProfile(data);
+        if (data?.is_private !== undefined) {
+          setIsPrivateProfile(data.is_private);
+        }
       };
       getProfile();
     }
@@ -38,8 +42,13 @@ const Settings = ({ session }) => {
     setIsDarkMode((prev) => !prev);
   };
 
-  const handleSaveSimulate = () => {
+  const togglePrivateProfile = () => {
+    setIsPrivateProfile((prev) => !prev);
+  };
+
+  const handleSaveSimulate = async () => {
     setSaving(true);
+    await supabase.from('profiles').update({ is_private: isPrivateProfile }).eq('id', session.user.id);
     setTimeout(() => setSaving(false), 800);
   };
 
@@ -112,14 +121,39 @@ const Settings = ({ session }) => {
           </p>
         </section>
 
-        {/* Placeholder: Privacy Options */}
-        <section className="glass-panel" style={{ padding: '2rem', opacity: 0.7 }}>
+        {/* Privacy Options */}
+        <section className="glass-panel" style={{ padding: '2rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '1.5rem' }}>
             <Shield size={24} color="var(--danger)" />
-            <h3 style={{ fontSize: '1.25rem' }}>Privacy options (Coming Soon)</h3>
+            <h3 style={{ fontSize: '1.25rem' }}>Privacy & Security</h3>
+          </div>
+          
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem', background: 'var(--input-bg)', borderRadius: '12px', border: '1px solid var(--border-color)', marginBottom: '1rem' }}>
+            <div>
+              <h4 style={{ fontSize: '1rem', marginBottom: '4px' }}>Private Profile</h4>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Hide your profile from public searches and non-friends.</p>
+            </div>
+            {/* Custom Toggle Switch */}
+            <div
+              onClick={togglePrivateProfile}
+              style={{
+                width: '56px', height: '30px',
+                background: isPrivateProfile ? 'var(--primary)' : 'var(--text-muted)',
+                borderRadius: '30px', position: 'relative', cursor: 'pointer',
+                transition: 'background 0.3s'
+              }}
+            >
+              <div style={{
+                width: '24px', height: '24px', background: '#fff', borderRadius: '50%',
+                position: 'absolute', top: '3px',
+                left: isPrivateProfile ? '29px' : '3px',
+                transition: 'left 0.3s ease-in-out',
+                boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+              }} />
+            </div>
           </div>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1rem' }}>
-            Manage data sharing, cookies, and linked government IDs.
+            Secure authentication is active and enabled via Supabase.
           </p>
         </section>
 

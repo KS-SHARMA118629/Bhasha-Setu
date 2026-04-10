@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { LogOut, Globe2, User, Home, LayoutDashboard, Menu, X, Settings as SettingsIcon, Users, ShieldCheck } from 'lucide-react';
+import { LogOut, Globe2, User, Home, LayoutDashboard, Menu, X, Settings as SettingsIcon, Users, ShieldCheck, Bell, BookOpen } from 'lucide-react';
 
 const Navbar = ({ session }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -41,7 +41,7 @@ const Navbar = ({ session }) => {
   return (
     <nav className="navbar">
       <div className="navbar-container">
-        <Link to="/" className="navbar-logo" onClick={closeMenu}>
+        <Link to="/home" className="navbar-logo" onClick={closeMenu}>
           <Globe2 size={28} color="var(--primary)" />
           <span className="text-gradient">BhashaSetu</span>
         </Link>
@@ -51,15 +51,22 @@ const Navbar = ({ session }) => {
         </div>
 
         <div className={`nav-links ${isOpen ? 'active' : ''}`}>
-          <Link to="/" onClick={closeMenu} className="nav-item"><Home size={18} /> Home</Link>
+          <Link to="/home" onClick={closeMenu} className="nav-item"><Home size={18} /> Home</Link>
           {session ? (
             <>
               <Link to="/community" onClick={closeMenu} className="nav-item"><Users size={18} /> Community</Link>
               <Link to="/profile" onClick={closeMenu} className="nav-item"><User size={18} /> Profile</Link>
               <Link to="/settings" onClick={closeMenu} className="nav-item"><SettingsIcon size={18} /> Settings</Link>
+              <Link to="/learning" onClick={closeMenu} className="nav-item"><BookOpen size={18} /> Learning</Link>
               {isAdmin && (
                 <Link to="/admin" onClick={closeMenu} className="nav-item"><ShieldCheck size={18} /> Admin</Link>
               )}
+              
+              <Link to="/notifications" onClick={closeMenu} className="nav-item" style={{ position: 'relative' }}>
+                <Bell size={18} /> Notifications
+                <span className="notification-badge">3</span>
+              </Link>
+
               <button onClick={() => { handleLogout(); closeMenu(); }} className="btn-secondary logout-btn">
                 <LogOut size={16} /> Logout
               </button>
