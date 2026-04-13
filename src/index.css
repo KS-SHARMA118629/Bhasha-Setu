@@ -1,14 +1,14 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
 :root {
-  --primary: #2563eb;
-  --primary-hover: #1d4ed8;
+  --primary: #ff4e20;
+  --primary-hover: #e6451c;
   --bg-color: #0f172a;
   --bg-color-alt: #1e293b;
   --text-main: #f8fafc;
   --text-muted: #94a3b8;
   --border-color: #334155;
-  
+
   --success: #10b981;
   --warning: #f59e0b;
   --danger: #ef4444;
@@ -22,7 +22,7 @@ body.light-mode {
   --text-main: #0f172a;
   --text-muted: #475569;
   --border-color: #cbd5e1;
-  
+
   --panel-bg: rgba(255, 255, 255, 0.8);
   --panel-border: rgba(0, 0, 0, 0.1);
   --input-bg: rgba(255, 255, 255, 0.9);
@@ -46,6 +46,12 @@ body {
   color: var(--text-main);
   min-height: 100vh;
   overflow-x: hidden;
+  width: 100%;
+}
+
+img, video, iframe {
+  max-width: 100%;
+  height: auto;
 }
 
 a {
@@ -62,9 +68,12 @@ button {
   font-family: var(--font-base);
   border: none;
   outline: none;
+  min-height: 48px; /* Touch target minimum */
 }
 
-input, textarea, select {
+input,
+textarea,
+select {
   font-family: var(--font-base);
   border: none;
   outline: none;
@@ -107,6 +116,15 @@ input, textarea, select {
   background: var(--bg-color-alt);
 }
 
+.btn-primary, .btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  min-height: 48px;
+  line-height: normal;
+}
+
 .input-field {
   width: 100%;
   padding: 0.75rem 1rem;
@@ -132,13 +150,16 @@ input, textarea, select {
 ::-webkit-scrollbar {
   width: 8px;
 }
+
 ::-webkit-scrollbar-track {
   background: var(--bg-color);
 }
+
 ::-webkit-scrollbar-thumb {
   background: var(--border-color);
   border-radius: 4px;
 }
+
 ::-webkit-scrollbar-thumb:hover {
   background: var(--text-muted);
 }
@@ -170,10 +191,16 @@ input, textarea, select {
   font-weight: 700;
 }
 
-.nav-links {
+.nav-links.desktop-only {
   display: flex;
   gap: 1.5rem;
   align-items: center;
+}
+
+@media (max-width: 768px) {
+  .nav-links.desktop-only {
+    display: none;
+  }
 }
 
 .nav-item {
@@ -208,9 +235,10 @@ input, textarea, select {
 
 /* Global Responsive Base */
 .container {
+  width: 100%;
   max-width: 1200px;
   margin: 0 auto;
-  padding: 2rem;
+  padding: 2rem 5%; /* Fluid padding scaling */
 }
 
 .responsive-grid {
@@ -224,28 +252,14 @@ input, textarea, select {
   .navbar {
     padding: 1rem;
   }
-  
+
   .mobile-menu-btn {
     display: block;
     z-index: 101;
   }
-  
-  .nav-links {
-    position: fixed;
-    top: 70px;
-    left: 0;
-    width: 100%;
-    background: var(--bg-color);
-    flex-direction: column;
-    padding: 2rem;
-    gap: 2rem;
-    border-bottom: 1px solid var(--border-color);
-    clip-path: polygon(0 0, 100% 0, 100% 0, 0 0);
-    transition: clip-path 0.3s ease-in-out;
-  }
 
-  .nav-links.active {
-    clip-path: polygon(0 0, 100% 0, 100% 100%, 0% 100%);
+  .nav-links.desktop-only {
+    display: none;
   }
 
   .auth-buttons {
@@ -261,18 +275,21 @@ input, textarea, select {
   h1 {
     font-size: 2rem !important;
   }
-  
+
   .glass-panel {
     padding: 1.5rem !important;
   }
 
   /* Make forms inputs wider and easily tappable on mobile */
   .input-field {
-    font-size: 16px; /* Prevents iOS zooming */
+    font-size: 16px;
+    min-height: 48px; /* Touch target */
+    /* Prevents iOS zooming */
   }
 
   .responsive-grid {
     grid-template-columns: 1fr;
+    gap: 1.5rem;
   }
 }
 
@@ -282,5 +299,3 @@ input, textarea, select {
     font-size: 1.8rem !important;
   }
 }
-
-

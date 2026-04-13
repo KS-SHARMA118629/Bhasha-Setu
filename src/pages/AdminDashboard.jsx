@@ -2,8 +2,9 @@ import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { 
   Users, ShieldCheck, Ban, CheckCircle, RotateCcw, 
-  Edit3, Search, Key, User as UserIcon, Send, Bell
+  Edit3, Search, Key, User as UserIcon, Send, Bell, BookOpen, MessageSquare
 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 const AdminDashboard = ({ session }) => {
   const [users, setUsers] = useState([]);
@@ -21,6 +22,17 @@ const AdminDashboard = ({ session }) => {
   const [notifType, setNotifType] = useState('info');
   const [sendingNotif, setSendingNotif] = useState(false);
   const [notifStatus, setNotifStatus] = useState('');
+  
+  // Scheme Upload State
+  const [schemeData, setSchemeData] = useState({
+    title: '',
+    description: '',
+    language: 'English',
+    avatar_url: ''
+  });
+  const [uploadingScheme, setUploadingScheme] = useState(false);
+  const [schemeStatus, setSchemeStatus] = useState('');
+
   
   // Edit Modal State
   const [editingUser, setEditingUser] = useState(null);
@@ -196,6 +208,31 @@ const AdminDashboard = ({ session }) => {
     setTimeout(() => setNotifStatus(''), 5000);
   };
 
+  const handleUploadScheme = async (e) => {
+    e.preventDefault();
+    if (!schemeData.title || !schemeData.description) return;
+    setUploadingScheme(true);
+    setSchemeStatus('');
+    try {
+      const { error } = await supabase.from('schemes').insert({
+        title: schemeData.title,
+        description: schemeData.description,
+        language: schemeData.language,
+        uploader_id: session.user.id
+        // NOTE: we rely on actual profile data for avatar and verification tick logic via uploader_id relations.
+      });
+      if (error) throw error;
+      setSchemeStatus('Scheme uploaded successfully!');
+      setSchemeData({ title: '', description: '', language: 'English', avatar_url: '' });
+    } catch (err) {
+      console.warn('Scheme upload failed (check if table exists):', err.message);
+      setSchemeStatus('Failed to upload (Does schemes table exist?)');
+    }
+    setUploadingScheme(false);
+    setTimeout(() => setSchemeStatus(''), 5000);
+  };
+
+
   const filteredUsers = users.filter(u => 
     (u.name?.toLowerCase().includes(searchTerm.toLowerCase())) || 
     (u.id.toLowerCase().includes(searchTerm.toLowerCase()))
@@ -235,16 +272,21 @@ const AdminDashboard = ({ session }) => {
         <h1 style={{ fontSize: '2rem', display: 'flex', alignItems: 'center', gap: '12px' }}>
           <ShieldCheck size={36} color="var(--primary)" /> Admin Control Center
         </h1>
-        <div style={{ position: 'relative', width: '300px' }}>
-          <Search size={18} style={{ position: 'absolute', top: '12px', left: '12px', color: 'var(--text-muted)' }} />
-          <input 
-            type="text" 
-            className="input-field" 
-            style={{ paddingLeft: '40px' }} 
-            placeholder="Search users..." 
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+          <Link to="/admin/complaints" className="btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <MessageSquare size={18} /> View Complaints
+          </Link>
+          <div style={{ position: 'relative', width: '300px' }}>
+            <Search size={18} style={{ position: 'absolute', top: '12px', left: '12px', color: 'var(--text-muted)' }} />
+            <input 
+              type="text" 
+              className="input-field" 
+              style={{ paddingLeft: '40px' }} 
+              placeholder="Search users..." 
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
         </div>
       </div>
 
@@ -291,10 +333,44 @@ const AdminDashboard = ({ session }) => {
         </form>
       </div>
 
+      {/* Upload Government Scheme Panel */}
+      <div className="glass-panel" style={{ padding: '1.5rem', marginBottom: '2rem' }}>
+        <h2 style={{ fontSize: '1.25rem', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1rem' }}>
+          <BookOpen size={24} color="var(--primary)" /> Add Learning / Govt Scheme
+        </h2>
+        <form onSubmit={handleUploadScheme} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1rem' }}>
+            <input 
+              type="text" className="input-field" placeholder="Scheme Title" 
+              value={schemeData.title} onChange={(e) => setSchemeData({...schemeData, title: e.target.value})} required
+            />
+            <textarea 
+              className="input-field" placeholder="Description / Benefits..." rows="3"
+              value={schemeData.description} onChange={(e) => setSchemeData({...schemeData, description: e.target.value})} required
+            />
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+              <select className="input-field" value={schemeData.language} onChange={(e) => setSchemeData({...schemeData, language: e.target.value})}>
+                <option value="English">English</option>
+                <option value="Hindi">Hindi</option>
+                <option value="Tamil">Tamil</option>
+                <option value="Telugu">Telugu</option>
+                <option value="Marathi">Marathi</option>
+              </select>
+            </div>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '1rem' }}>
+            {schemeStatus && <span style={{ color: schemeStatus.includes('Failed') ? 'var(--danger)' : 'var(--success)', fontSize: '0.9rem' }}>{schemeStatus}</span>}
+            <button type="submit" className="btn-primary" disabled={uploadingScheme}>
+              {uploadingScheme ? 'Uploading...' : 'Upload Scheme'}
+            </button>
+          </div>
+        </form>
+      </div>
+
       {loading && users.length === 0 ? (
         <div style={{ textAlign: 'center', py: '5rem' }}>Loading users...</div>
       ) : (
-        <div className="responsive-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))' }}>
+        <div className="responsive-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 350px), 1fr))' }}>
           {filteredUsers.map(user => (
             <div key={user.id} className="glass-panel" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem', opacity: actionLoading === user.id ? 0.6 : 1 }}>
               <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start' }}>

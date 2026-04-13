@@ -32,7 +32,7 @@ const DownloadApp = () => {
           <div className="actions">
 
             <a
-              href="bhashasetu\src\assets\bhasha.setu.apk"
+              href="https://uglezavtskhwpbvbwaco.supabase.co/storage/v1/object/public/chat-media/Apk/bhasha.setu.apk"
               className="btn btn-primary download-btn"
               download
             >
@@ -41,7 +41,7 @@ const DownloadApp = () => {
 
             <Link
               to="/home"
-              className="btn btn-secondary continue-btn"
+              className="btn btn-primary download-btn"
             >
               CONTINUE IN WEBSITE
             </Link>
@@ -49,7 +49,7 @@ const DownloadApp = () => {
           </div>
 
           <div className="footer-info">
-            v3.4 <span>(15.8 MB)</span>
+            v0.1 <span>(11.04 MB)</span>
           </div>
         </div>
 

@@ -170,7 +170,7 @@ const Community = ({ session }) => {
                 onClick={() => setShowCreateGroup(true)}
                 title="Create Group"
               >
-                <Plus size={20} />
+                <Plus size={35} />
               </button>
             )}
            </div>
